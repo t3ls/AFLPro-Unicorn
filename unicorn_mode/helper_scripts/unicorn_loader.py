@@ -190,8 +190,23 @@ class AflUnicornEngine(Uc):
                 if debug_print:
                     print("Skipping Reg: {}".format(register))
             else:
-                self.reg_write(reg_map[register.lower()], value)
+                reg_write_retry = True
+                try:
+                    self.reg_write(reg_map[register.lower()], value)
+                    reg_write_retry = False
+                except Exception as e:
+                    if debug_print:
+                        print("ERROR writing register: {}, value: {} -- {}".format(register, value, repr(e)))
 
+                if reg_write_retry:
+                    if debug_print:
+                        print("Trying to parse value ({}) as hex string".format(value))
+                    try:
+                        self.reg_write(reg_map[register.lower()], int(value, 16))
+                    except Exception as e:
+                        if debug_print:
+                            print("ERROR writing hex string register: {}, value: {} -- {}".format(register, value, repr(e)))
+                        
         # Setup the memory map and load memory content
         self.__map_segments(context['segments'], context_directory, debug_print)
         
