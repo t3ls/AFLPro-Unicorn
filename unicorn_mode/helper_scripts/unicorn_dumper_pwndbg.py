@@ -36,6 +36,20 @@ import zlib
 # GDB Python SDK
 import gdb
 
+pwndbg_loaded = False
+
+try:
+    import pwndbg.arch
+    import pwndbg.regs
+    import pwndbg.vmmap
+    import pwndbg.memory
+
+    pwndbg_loaded = True
+
+except ImportError:
+    print("!!! PWNGDB not running in GDB.  Please run gdbinit.py by executing:")
+    print('\tpython execfile ("<path_to_pwndbg>/gdbinit.py")')
+
 # Maximum segment size that we'll store
 # Yep, this could break stuff pretty quickly if we
 # omit something that's used during emulation.
@@ -48,7 +62,7 @@ INDEX_FILE_NAME = "_index.json"
 #---- Helper Functions
 
 def map_arch():
-    arch = get_arch() # from GEF
+    arch = pwndbg.arch.current # from PWNDBG
     if 'x86_64' in arch or 'x86-64' in arch:
         return "x64"
     elif 'x86' in arch or 'i386' in arch:
@@ -88,8 +102,8 @@ def dump_arch_info():
 
 def dump_regs():
     reg_state = {}
-    for reg in current_arch.all_registers:
-        reg_val = get_register(reg)
+    for reg in pwndbg.regs.all:
+        reg_val = pwndbg.regs[reg]
         # current dumper script looks for register values to be hex strings
 #         reg_str = "0x{:08x}".format(reg_val)
 #         if "64" in get_arch():
@@ -103,31 +117,31 @@ def dump_process_memory(output_dir):
     # Segment information dictionary
     final_segment_list = []
     
-    # GEF:
-    vmmap = get_process_maps()
+    # PWNDBG:
+    vmmap = pwndbg.vmmap.get()
     if not vmmap:
         print("No address mapping information found")
         return final_segment_list
 
     for entry in vmmap:
-        if entry.page_start == entry.page_end:
+        if entry.start == entry.end:
             continue
         
-        seg_info = {'start': entry.page_start, 'end': entry.page_end, 'name': entry.path, 'permissions': {
-            "r": entry.is_readable() > 0,
-            "w": entry.is_writable() > 0,
-            "x": entry.is_executable() > 0
+        seg_info = {'start': entry.start, 'end': entry.end, 'name': entry.objfile, 'permissions': {
+            "r": entry.read,
+            "w": entry.write,
+            "x": entry.execute
         }, 'content_file': ''}
 
         # "(deleted)" may or may not be valid, but don't push it.
-        if entry.is_readable() and not '(deleted)' in entry.path:
+        if entry.read and not '(deleted)' in entry.objfile:
             try:
                 # Compress and dump the content to a file
-                seg_content = read_memory(entry.page_start, entry.size)
+                seg_content = pwndbg.memory.read(entry.start, entry.end - entry.start)
                 if(seg_content == None):
-                    print("Segment empty: @0x{0:016x} (size:UNKNOWN) {1}".format(entry.page_start, entry.path))
+                    print("Segment empty: @0x{0:016x} (size:UNKNOWN) {1}".format(entry.start, entry.objfile))
                 else:
-                    print("Dumping segment @0x{0:016x} (size:0x{1:x}): {2} [{3}]".format(entry.page_start, len(seg_content), entry.path, repr(seg_info['permissions'])))
+                    print("Dumping segment @0x{0:016x} (size:0x{1:x}): {2} [{3}]".format(entry.start, len(seg_content), entry.objfile, repr(seg_info['permissions'])))
                     compressed_seg_content = zlib.compress(seg_content)
                     md5_sum = hashlib.md5(compressed_seg_content).hexdigest() + ".bin"
                     seg_info["content_file"] = md5_sum
@@ -138,9 +152,9 @@ def dump_process_memory(output_dir):
                     out_file.close()
 
             except:
-                print("Exception reading segment ({}): {}".format(entry.path, sys.exc_info()[0]))
+                print("Exception reading segment ({}): {}".format(entry.objfile, sys.exc_info()[0]))
         else:
-            print("Skipping segment {0}@0x{1:016x}".format(entry.path, entry.page_start))
+            print("Skipping segment {0}@0x{1:016x}".format(entry.objfile, entry.start))
 
         # Add the segment to the list
         final_segment_list.append(seg_info)
@@ -155,15 +169,9 @@ def main():
     print("----- Unicorn Context Dumper -----")
     print("You must be actively debugging before running this!")
     print("If it fails, double check that you are actively debugging before running.")
-    try:
-        GEF_TEST = set_arch()
-    except Exception as e:
-        print("!!! GEF not running in GDB.  Please run gef.py by executing:")
-        print('\tpython execfile ("<path_to_gef>/gef.py")')
-        return
     
     try:
-    
+
         # Create the output directory
         timestamp = datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d_%H%M%S')
         output_path = "UnicornContext_" + timestamp
@@ -187,6 +195,6 @@ def main():
     except Exception as e:
         print("!!! ERROR:\n\t{}".format(repr(e)))
         
-if __name__ == "__main__":
+if __name__ == "__main__" and pwndbg_loaded:
     main()
     
