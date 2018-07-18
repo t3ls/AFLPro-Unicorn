@@ -367,7 +367,7 @@ class AflUnicornEngine(Uc):
             "armbethumb": [ UC_ARM_REG_PC,      UC_ARCH_ARM,    UC_MODE_THUMB | UC_MODE_BIG_ENDIAN ],
             "armlethumb": [ UC_ARM_REG_PC,      UC_ARCH_ARM,    UC_MODE_THUMB | UC_MODE_LITTLE_ENDIAN ],
             "mips"      : [ UC_MIPS_REG_PC,     UC_ARCH_MIPS,   UC_MODE_MIPS32 | UC_MODE_BIG_ENDIAN ],
-            "mipsel"      : [ UC_MIPS_REG_PC,     UC_ARCH_MIPS,   UC_MODE_MIPS32 | UC_MODE_LITTLE_ENDIAN ],
+            "mipsel"    : [ UC_MIPS_REG_PC,     UC_ARCH_MIPS,   UC_MODE_MIPS32 | UC_MODE_LITTLE_ENDIAN ],
         }
         return (arch_map[arch_str][1], arch_map[arch_str][2])
 
