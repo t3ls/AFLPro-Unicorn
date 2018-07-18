@@ -24,6 +24,7 @@ from unicorn import *
 from unicorn.arm_const import *
 from unicorn.arm64_const import *
 from unicorn.x86_const import *
+from unicorn.mips_const import *
 
 # Name of the index file
 INDEX_FILE_NAME = "_index.json"
@@ -366,6 +367,7 @@ class AflUnicornEngine(Uc):
             "armbethumb": [ UC_ARM_REG_PC,      UC_ARCH_ARM,    UC_MODE_THUMB | UC_MODE_BIG_ENDIAN ],
             "armlethumb": [ UC_ARM_REG_PC,      UC_ARCH_ARM,    UC_MODE_THUMB | UC_MODE_LITTLE_ENDIAN ],
             "mips"      : [ UC_MIPS_REG_PC,     UC_ARCH_MIPS,   UC_MODE_MIPS32 | UC_MODE_BIG_ENDIAN ],
+            "mipsel"      : [ UC_MIPS_REG_PC,     UC_ARCH_MIPS,   UC_MODE_MIPS32 | UC_MODE_LITTLE_ENDIAN ],
         }
         return (arch_map[arch_str][1], arch_map[arch_str][2])
 
@@ -374,6 +376,8 @@ class AflUnicornEngine(Uc):
             arch = "arm64"
         elif arch == "armle" or arch == "armbe" or "thumb" in arch:
             arch = "arm"
+        elif arch == "mipsel":
+            arch = "mips"
 
         registers = {
             "x64" : {

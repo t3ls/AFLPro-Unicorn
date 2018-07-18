@@ -1,5 +1,5 @@
 """
-    unicorn_dumper_gdb.py
+    unicorn_dumper_pwndbg.py
     
     When run with GDB sitting at a debug breakpoint, this
     dumps the current state (registers/memory/etc) of
@@ -12,13 +12,13 @@
 
     -----------
 
-    In order to run this script, GEF needs to be running in the GDB session (gef.py)
-    # HELPERS from: https://github.com/hugsy/gef/blob/master/gef.py
+    In order to run this script, PWNDBG needs to be running in the GDB session (gdbinit.py)
+    # HELPERS from: https://github.com/pwndbg/pwndbg
     It can be loaded with:
-      source <path_to_gef>/gef.py
+      source <path_to_pwndbg>/gdbinit.py
 
     Call this function when at a breakpoint in your process with:
-      source unicorn_dumper_gdb.py
+      source unicorn_dumper_pwngdb.py
 
     -----------
 
@@ -86,7 +86,10 @@ def map_arch():
         else:
             return "armle"
     elif 'mips' in arch:
-        return 'mips'
+        if pwndbg.arch.endian == 'little':
+            return 'mipsel'
+        else:
+            return 'mips'
     else:
         return ""
 
@@ -119,15 +122,33 @@ def dump_process_memory(output_dir):
     
     # PWNDBG:
     vmmap = pwndbg.vmmap.get()
+    
+    # Pointer to end of last dumped memory segment
+    segment_last_addr = 0x0;
+
+    start = None
+    end   = None
+
     if not vmmap:
         print("No address mapping information found")
         return final_segment_list
 
+    # Assume segment entries are sorted by start address
     for entry in vmmap:
         if entry.start == entry.end:
             continue
+
+        start = entry.start
+        end   = entry.end
+
+        if (segment_last_addr > entry.start): # indicates overlap
+            if (segment_last_addr > entry.end): # indicates complete overlap, so we skip the segment entirely
+                continue
+            else:            
+                start = segment_last_addr
+            
         
-        seg_info = {'start': entry.start, 'end': entry.end, 'name': entry.objfile, 'permissions': {
+        seg_info = {'start': start, 'end': end, 'name': entry.objfile, 'permissions': {
             "r": entry.read,
             "w": entry.write,
             "x": entry.execute
@@ -137,7 +158,7 @@ def dump_process_memory(output_dir):
         if entry.read and not '(deleted)' in entry.objfile:
             try:
                 # Compress and dump the content to a file
-                seg_content = pwndbg.memory.read(entry.start, entry.end - entry.start)
+                seg_content = pwndbg.memory.read(start, end - start)
                 if(seg_content == None):
                     print("Segment empty: @0x{0:016x} (size:UNKNOWN) {1}".format(entry.start, entry.objfile))
                 else:
@@ -155,6 +176,8 @@ def dump_process_memory(output_dir):
                 print("Exception reading segment ({}): {}".format(entry.objfile, sys.exc_info()[0]))
         else:
             print("Skipping segment {0}@0x{1:016x}".format(entry.objfile, entry.start))
+        
+        segment_last_addr = end
 
         # Add the segment to the list
         final_segment_list.append(seg_info)
