@@ -71,20 +71,21 @@ def map_arch():
         return "arm64le"
     elif 'aarch64_be' in arch:
         return "arm64be"
-    elif 'armeb' in arch:
-        # check for THUMB mode
-        cpsr = get_register('cpsr')
-        if (cpsr & (1 << 5)):
-            return "armbethumb"
-        else:
-            return "armbe"
     elif 'arm' in arch:
-        # check for THUMB mode
-        cpsr = get_register('cpsr')
-        if (cpsr & (1 << 5)):
-            return "armlethumb"
+        cpsr = pwndbg.regs['cpsr']
+        # check endianess 
+        if pwndbg.arch.endian == 'big':
+            # check for THUMB mode
+            if (cpsr & (1 << 5)):
+                return "armbethumb"
+            else:
+                return "armbe"
         else:
-            return "armle"
+            # check for THUMB mode
+            if (cpsr & (1 << 5)):
+                return "armlethumb"
+            else:
+                return "armle"
     elif 'mips' in arch:
         if pwndbg.arch.endian == 'little':
             return 'mipsel'
