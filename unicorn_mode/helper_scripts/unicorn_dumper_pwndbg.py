@@ -18,7 +18,7 @@
       source <path_to_pwndbg>/gdbinit.py
 
     Call this function when at a breakpoint in your process with:
-      source unicorn_dumper_pwngdb.py
+      source unicorn_dumper_pwndbg.py
 
     -----------
 
