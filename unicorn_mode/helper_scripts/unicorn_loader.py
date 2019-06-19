@@ -1,8 +1,8 @@
 """
     unicorn_loader.py
-    
-    Loads a process context dumped created using a 
-    Unicorn Context Dumper script into a Unicorn Engine 
+
+    Loads a process context dumped created using a
+    Unicorn Context Dumper script into a Unicorn Engine
     instance. Once this is performed emulation can be
     started.
 """
@@ -97,7 +97,7 @@ class UnicornSimpleHeap(object):
                 continue
         # Something went very wrong
         if chunk == None:
-            return 0    
+            return 0
         self._chunks.append(chunk)
         return chunk.data_addr
 
@@ -112,8 +112,8 @@ class UnicornSimpleHeap(object):
         old_chunk = None
         for chunk in self._chunks:
             if chunk.data_addr == ptr:
-                old_chunk = chunk 
-        new_chunk_addr = self.malloc(new_size) 
+                old_chunk = chunk
+        new_chunk_addr = self.malloc(new_size)
         if old_chunk != None:
             self._uc.mem_write(new_chunk_addr, str(self._uc.mem_read(old_chunk.data_addr, old_chunk.data_size)))
             self.free(old_chunk.data_addr)
@@ -207,16 +207,16 @@ class AflUnicornEngine(Uc):
                     except Exception as e:
                         if debug_print:
                             print("ERROR writing hex string register: {}, value: {} -- {}".format(register, value, repr(e)))
-                        
+
         # Setup the memory map and load memory content
         self.__map_segments(context['segments'], context_directory, debug_print)
-        
+
         if enable_trace:
             self.hook_add(UC_HOOK_BLOCK, self.__trace_block)
             self.hook_add(UC_HOOK_CODE, self.__trace_instruction)
             self.hook_add(UC_HOOK_MEM_WRITE | UC_HOOK_MEM_READ, self.__trace_mem_access)
             self.hook_add(UC_HOOK_MEM_WRITE_UNMAPPED | UC_HOOK_MEM_READ_INVALID, self.__trace_mem_invalid_access)
-            
+
         if debug_print:
             print("Done loading context.")
 
@@ -228,7 +228,7 @@ class AflUnicornEngine(Uc):
 
     def get_arch_str(self):
         return self._arch_str
-                    
+
     def force_crash(self, uc_error):
         """ This function should be called to indicate to AFL that a crash occurred during emulation.
             You can pass the exception received from Uc.emu_start
@@ -253,17 +253,36 @@ class AflUnicornEngine(Uc):
         for reg in sorted(self.__get_register_map(self._arch_str).items(), key=lambda reg: reg[0]):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
-    # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
-    """
-    def dump_stack(self, window=10):
+    def dump_stack(self, window=5):
+        arch = self.get_arch()
+        mode = self.get_mode()
+        # Get stack pointers and bit sizes for given architecture
+        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+            bit_size = 8
+        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_ESP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM64:
+            stack_ptr_addr = self.reg_read(UC_ARM64_REG_SP)
+            bit_size = 8
+        elif arch == UC_ARCH_ARM:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_MIPS:
+            stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
+            bit_size = 4
         print(">>> Stack:")
-        stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+        # Make sure window is not too large to go past stack
         for i in xrange(-window, window + 1):
-            addr = stack_ptr_addr + (i*8)
-            print("{0}0x{1:016x}: 0x{2:016x}".format( \
-                'SP->' if i == 0 else '    ', addr, \
-                struct.unpack('<Q', self.mem_read(addr, 8))[0]))
-    """
+            # Increament address and print stack
+            addr = stack_ptr_addr + (i*bit_size)
+            if bit_size == 4:
+                print("{0}0x{1:08x}: 0x{2:08x}".format('SP->' if i == 0 else '    ', addr, \
+                    struct.unpack('<I', self.mem_read(addr, bit_size))[0]))
+            else:
+                print("{0}0x{1:016x}: 0x{2:016x}".format('SP->' if i == 0 else '    ', addr, \
+                    struct.unpack('<Q', self.mem_read(addr, bit_size))[0]))
 
     #-----------------------------
     #---- Loader Helper Functions
@@ -289,7 +308,7 @@ class AflUnicornEngine(Uc):
 
     def __map_segments(self, segment_list, context_directory, debug_print=False):
         for segment in segment_list:
-            
+
             # Get the segment information from the index
             name = segment['name']
             seg_start = segment['start']
@@ -297,7 +316,7 @@ class AflUnicornEngine(Uc):
             perms = \
                 (UC_PROT_READ  if segment['permissions']['r'] == True else 0) | \
                 (UC_PROT_WRITE if segment['permissions']['w'] == True else 0) | \
-                (UC_PROT_EXEC  if segment['permissions']['x'] == True else 0)        
+                (UC_PROT_EXEC  if segment['permissions']['x'] == True else 0)
 
             if debug_print:
                 print("Handling segment {}".format(name))
@@ -349,7 +368,7 @@ class AflUnicornEngine(Uc):
                 content_file = open(content_file_path, 'rb')
                 compressed_content = content_file.read()
                 content_file.close()
-                self.mem_write(seg_start, zlib.decompress(compressed_content)) 
+                self.mem_write(seg_start, zlib.decompress(compressed_content))
 
             else:
                 if debug_print:
@@ -418,10 +437,10 @@ class AflUnicornEngine(Uc):
                 "esp":    UC_X86_REG_ESP,
                 "eip":    UC_X86_REG_EIP,
                 "esp":    UC_X86_REG_ESP,
-                "efl":    UC_X86_REG_EFLAGS,        
+                "efl":    UC_X86_REG_EFLAGS,
                 # Segment registers removed...
                 # They caused segfaults (from unicorn?) when they were here
-            },        
+            },
             "arm" : {
                 "r0":     UC_ARM_REG_R0,
                 "r1":     UC_ARM_REG_R1,
@@ -476,7 +495,7 @@ class AflUnicornEngine(Uc):
                 "fp":     UC_ARM64_REG_FP,
                 "lr":     UC_ARM64_REG_LR,
                 "nzcv":   UC_ARM64_REG_NZCV,
-                "cpsr": UC_ARM_REG_CPSR, 
+                "cpsr": UC_ARM_REG_CPSR,
             },
             "mips" : {
                 "0" :     UC_MIPS_REG_ZERO,
@@ -499,13 +518,13 @@ class AflUnicornEngine(Uc):
                 "t9":     UC_MIPS_REG_T9,
                 "s0":     UC_MIPS_REG_S0,
                 "s1":     UC_MIPS_REG_S1,
-                "s2":     UC_MIPS_REG_S2,    
+                "s2":     UC_MIPS_REG_S2,
                 "s3":     UC_MIPS_REG_S3,
                 "s4":     UC_MIPS_REG_S4,
                 "s5":     UC_MIPS_REG_S5,
-                "s6":     UC_MIPS_REG_S6,              
+                "s6":     UC_MIPS_REG_S6,
                 "s7":     UC_MIPS_REG_S7,
-                "s8":     UC_MIPS_REG_S8,  
+                "s8":     UC_MIPS_REG_S8,
                 "k0":     UC_MIPS_REG_K0,
                 "k1":     UC_MIPS_REG_K1,
                 "gp":     UC_MIPS_REG_GP,
@@ -517,12 +536,12 @@ class AflUnicornEngine(Uc):
                 "lo":     UC_MIPS_REG_LO
             }
         }
-        return registers[arch]   
+        return registers[arch]
 
     #---------------------------
-    # Callbacks for tracing 
+    # Callbacks for tracing
 
-    # TODO: Make integer-printing fixed widths dependent on bitness of architecture 
+    # TODO: Make integer-printing fixed widths dependent on bitness of architecture
     #       (i.e. only show 4 bytes for 32-bit, 8 bytes for 64-bit)
 
     # TODO: Figure out how best to determine the capstone mode and architecture here
@@ -537,24 +556,23 @@ class AflUnicornEngine(Uc):
                 print("    Instr: {:#016x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
     except ImportError:
         def __trace_instruction(self, uc, address, size, user_data):
-            print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))    
+            print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
     """
 
     def __trace_instruction(self, uc, address, size, user_data):
-        print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))  
-        
+        print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
+
     def __trace_block(self, uc, address, size, user_data):
         print("Basic Block: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
-      
+
     def __trace_mem_access(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE:
             print("        >>> Write: addr=0x{0:016x} size={1} data=0x{2:016x}".format(address, size, value))
         else:
-            print("        >>> Read: addr=0x{0:016x} size={1}".format(address, size))    
+            print("        >>> Read: addr=0x{0:016x} size={1}".format(address, size))
 
     def __trace_mem_invalid_access(self, uc, access, address, size, value, user_data):
         if access == UC_MEM_WRITE_UNMAPPED:
             print("        >>> INVALID Write: addr=0x{0:016x} size={1} data=0x{2:016x}".format(address, size, value))
         else:
-            print("        >>> INVALID Read: addr=0x{0:016x} size={1}".format(address, size))   
-
+            print("        >>> INVALID Read: addr=0x{0:016x} size={1}".format(address, size))
