@@ -269,9 +269,13 @@ class AflUnicornEngine(Uc):
         elif arch == UC_ARCH_ARM:
             stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
             bit_size = 4
+        elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
         elif arch == UC_ARCH_MIPS:
             stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
             bit_size = 4
+        print("")
         print(">>> Stack:")
         # Make sure window is not too large to go past stack
         for i in xrange(-window, window + 1):
