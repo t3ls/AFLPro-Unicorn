@@ -26,6 +26,10 @@ from unicorn.arm64_const import *
 from unicorn.x86_const import *
 from unicorn.mips_const import *
 
+
+# If Capstone libraries are available (only check once)
+CAPSTONE_EXISTS = 0
+
 # Name of the index file
 INDEX_FILE_NAME = "_index.json"
 
@@ -516,17 +520,20 @@ class AflUnicornEngine(Uc):
         }
         return registers[arch]
 
-    #---------------------------
+   #---------------------------
     # Callbacks for tracing
 
     # TODO: Extra mode for Capstone (i.e. Cs(cs_arch, cs_mode + cs_extra) not implemented
 
-
+    try:
+        from capstone import *
+        CAPSTONE_EXISTS = 1
+    except:
+         CAPSTONE_EXISTS = 0
 
     def __trace_instruction(self, uc, address, size, user_data):
-        try:
+        if CAPSTONE_EXISTS == 1:
             # If Capstone is installed then we'll dump disassembly, otherwise just dump the binary.
-            from capstone import *
             arch = self.get_arch()
             mode = self.get_mode()
             bit_size = self.bit_size_arch()
@@ -558,7 +565,7 @@ class AflUnicornEngine(Uc):
             else:
                 for (cs_address, cs_size, cs_mnemonic, cs_opstr) in cs.disasm_lite(bytes(mem), size):
                     print("    Instr: {:#16x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
-        except ImportError:
+        else:
             print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
 
     def __trace_block(self, uc, address, size, user_data):
