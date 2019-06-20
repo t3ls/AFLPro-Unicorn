@@ -253,6 +253,7 @@ class AflUnicornEngine(Uc):
         for reg in sorted(self.__get_register_map(self._arch_str).items(), key=lambda reg: reg[0]):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
+    # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
       def dump_stack(self, window=10):
           print(">>> Stack:")
@@ -263,7 +264,7 @@ class AflUnicornEngine(Uc):
                   'SP->' if i == 0 else '    ', addr, \
                   struct.unpack('<Q', self.mem_read(addr, 8))[0]))
       """
-    
+
     #-----------------------------
     #---- Loader Helper Functions
 
