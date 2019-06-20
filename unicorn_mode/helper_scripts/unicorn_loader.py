@@ -255,14 +255,14 @@ class AflUnicornEngine(Uc):
 
     # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
-      def dump_stack(self, window=10):
-          print(">>> Stack:")
-          stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
-          for i in xrange(-window, window + 1):
-              addr = stack_ptr_addr + (i*8)
-              print("{0}0x{1:016x}: 0x{2:016x}".format( \
-                  'SP->' if i == 0 else '    ', addr, \
-                  struct.unpack('<Q', self.mem_read(addr, 8))[0]))
+    def dump_stack(self, window=10):
+        print(">>> Stack:")
+        stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+        for i in xrange(-window, window + 1):
+            addr = stack_ptr_addr + (i*8)
+            print("{0}0x{1:016x}: 0x{2:016x}".format( \
+               'SP->' if i == 0 else '    ', addr, \
+                struct.unpack('<Q', self.mem_read(addr, 8))[0]))
       """
 
     #-----------------------------
