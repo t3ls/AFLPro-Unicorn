@@ -26,10 +26,6 @@ from unicorn.arm64_const import *
 from unicorn.x86_const import *
 from unicorn.mips_const import *
 
-
-# If Capstone libraries are available (only check once)
-CAPSTONE_EXISTS = 0
-
 # Name of the index file
 INDEX_FILE_NAME = "_index.json"
 
@@ -257,17 +253,41 @@ class AflUnicornEngine(Uc):
         for reg in sorted(self.__get_register_map(self._arch_str).items(), key=lambda reg: reg[0]):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
-    # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
-    """
-    def dump_stack(self, window=10):
+    def dump_stack(self, window=5):
+        arch = self.get_arch()
+        mode = self.get_mode()
+        # Get stack pointers and bit sizes for given architecture
+        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+            bit_size = 8
+        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_ESP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM64:
+            stack_ptr_addr = self.reg_read(UC_ARM64_REG_SP)
+            bit_size = 8
+        elif arch == UC_ARCH_ARM:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_MIPS:
+            stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
+            bit_size = 4
+        print("")
         print(">>> Stack:")
-        stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+        # Make sure window is not too large to go past stack
         for i in xrange(-window, window + 1):
-            addr = stack_ptr_addr + (i*8)
-            print("{0}0x{1:016x}: 0x{2:016x}".format( \
-                'SP->' if i == 0 else '    ', addr, \
-                struct.unpack('<Q', self.mem_read(addr, 8))[0]))
-    """
+            # Increament address and print stack
+            addr = stack_ptr_addr + (i*bit_size)
+            if bit_size == 4:
+                print("{0}0x{1:08x}: 0x{2:08x}".format('SP->' if i == 0 else '    ', addr, \
+                    struct.unpack('<I', self.mem_read(addr, bit_size))[0]))
+            else:
+                print("{0}0x{1:016x}: 0x{2:016x}".format('SP->' if i == 0 else '    ', addr, \
+                    struct.unpack('<Q', self.mem_read(addr, bit_size))[0]))
+
     #-----------------------------
     #---- Loader Helper Functions
 
@@ -401,6 +421,7 @@ class AflUnicornEngine(Uc):
                 "r14":    UC_X86_REG_R14,
                 "r15":    UC_X86_REG_R15,
                 "rip":    UC_X86_REG_RIP,
+                "rsp":    UC_X86_REG_RSP,
                 "efl":    UC_X86_REG_EFLAGS,
                 "cs":     UC_X86_REG_CS,
                 "ds":     UC_X86_REG_DS,
@@ -419,6 +440,7 @@ class AflUnicornEngine(Uc):
                 "ebp":    UC_X86_REG_EBP,
                 "esp":    UC_X86_REG_ESP,
                 "eip":    UC_X86_REG_EIP,
+                "esp":    UC_X86_REG_ESP,
                 "efl":    UC_X86_REG_EFLAGS,
                 # Segment registers removed...
                 # They caused segfaults (from unicorn?) when they were here
@@ -520,19 +542,25 @@ class AflUnicornEngine(Uc):
         }
         return registers[arch]
 
-   #---------------------------
+    #---------------------------
     # Callbacks for tracing
 
     # TODO: Extra mode for Capstone (i.e. Cs(cs_arch, cs_mode + cs_extra) not implemented
+    # TODO: Take out try statement so capstone is not imported everytime trace_instruction is called
 
-    try:
-        from capstone import *
-        CAPSTONE_EXISTS = 1
-    except:
-         CAPSTONE_EXISTS = 0
+    """
+    def try_capstone_import(self):
+        try:
+            from capstone import *
+            CAPSTONE_EXISTS = 1
+        except:
+            CAPSTONE_EXISTS = 0
+    """
 
     def __trace_instruction(self, uc, address, size, user_data):
-        if CAPSTONE_EXISTS == 1:
+        # if CAPSTONE_EXISTS == 1:
+        try:
+            from capstone import *
             # If Capstone is installed then we'll dump disassembly, otherwise just dump the binary.
             arch = self.get_arch()
             mode = self.get_mode()
@@ -565,7 +593,8 @@ class AflUnicornEngine(Uc):
             else:
                 for (cs_address, cs_size, cs_mnemonic, cs_opstr) in cs.disasm_lite(bytes(mem), size):
                     print("    Instr: {:#16x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
-        else:
+        # else:
+        except:
             print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
 
     def __trace_block(self, uc, address, size, user_data):
