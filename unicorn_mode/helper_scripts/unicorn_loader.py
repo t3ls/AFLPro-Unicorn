@@ -253,41 +253,17 @@ class AflUnicornEngine(Uc):
         for reg in sorted(self.__get_register_map(self._arch_str).items(), key=lambda reg: reg[0]):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
-    def dump_stack(self, window=5):
-        arch = self.get_arch()
-        mode = self.get_mode()
-        # Get stack pointers and bit sizes for given architecture
-        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
-            stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
-            bit_size = 8
-        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
-            stack_ptr_addr = self.reg_read(UC_X86_REG_ESP)
-            bit_size = 4
-        elif arch == UC_ARCH_ARM64:
-            stack_ptr_addr = self.reg_read(UC_ARM64_REG_SP)
-            bit_size = 8
-        elif arch == UC_ARCH_ARM:
-            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
-            bit_size = 4
-        elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
-            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
-            bit_size = 4
-        elif arch == UC_ARCH_MIPS:
-            stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
-            bit_size = 4
-        print("")
-        print(">>> Stack:")
-        # Make sure window is not too large to go past stack
-        for i in xrange(-window, window + 1):
-            # Increament address and print stack
-            addr = stack_ptr_addr + (i*bit_size)
-            if bit_size == 4:
-                print("{0}0x{1:08x}: 0x{2:08x}".format('SP->' if i == 0 else '    ', addr, \
-                    struct.unpack('<I', self.mem_read(addr, bit_size))[0]))
-            else:
-                print("{0}0x{1:016x}: 0x{2:016x}".format('SP->' if i == 0 else '    ', addr, \
-                    struct.unpack('<Q', self.mem_read(addr, bit_size))[0]))
-
+    """
+      def dump_stack(self, window=10):
+          print(">>> Stack:")
+          stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+          for i in xrange(-window, window + 1):
+              addr = stack_ptr_addr + (i*8)
+              print("{0}0x{1:016x}: 0x{2:016x}".format( \
+                  'SP->' if i == 0 else '    ', addr, \
+                  struct.unpack('<Q', self.mem_read(addr, 8))[0]))
+      """
+    
     #-----------------------------
     #---- Loader Helper Functions
 
