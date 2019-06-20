@@ -263,7 +263,7 @@ class AflUnicornEngine(Uc):
             print("{0}0x{1:016x}: 0x{2:016x}".format( \
                'SP->' if i == 0 else '    ', addr, \
                 struct.unpack('<Q', self.mem_read(addr, 8))[0]))
-      """
+    """
 
     #-----------------------------
     #---- Loader Helper Functions
@@ -398,7 +398,6 @@ class AflUnicornEngine(Uc):
                 "r14":    UC_X86_REG_R14,
                 "r15":    UC_X86_REG_R15,
                 "rip":    UC_X86_REG_RIP,
-                "rsp":    UC_X86_REG_RSP,
                 "efl":    UC_X86_REG_EFLAGS,
                 "cs":     UC_X86_REG_CS,
                 "ds":     UC_X86_REG_DS,
@@ -415,7 +414,6 @@ class AflUnicornEngine(Uc):
                 "esi":    UC_X86_REG_ESI,
                 "edi":    UC_X86_REG_EDI,
                 "ebp":    UC_X86_REG_EBP,
-                "esp":    UC_X86_REG_ESP,
                 "eip":    UC_X86_REG_EIP,
                 "esp":    UC_X86_REG_ESP,
                 "efl":    UC_X86_REG_EFLAGS,
