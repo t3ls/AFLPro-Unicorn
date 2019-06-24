@@ -151,16 +151,17 @@ def dump_process_memory(output_dir):
 #---- ARM Extention (dump floating point regs)
 
 def dump_float(rge=32):
-    reg_convert = ""
-    reg_state = {}
-    # Get all floating point registers
-    for reg_num in range(32):
-        value = gdb.selected_frame().read_register("d" + str(reg_num))
-        reg_state["d" + str(reg_num)] = int(str(value["u64"]), 16)
-    value = gdb.selected_frame().read_register("fpscr")
-    reg_state["fpscr"] = int(str(value), 16)
+    if dump_arch_info() == "arm":
+        reg_convert = ""
+        reg_state = {}
+        # Get all floating point registers
+        for reg_num in range(32):
+            value = gdb.selected_frame().read_register("d" + str(reg_num))
+            reg_state["d" + str(reg_num)] = int(str(value["u64"]), 16)
+        value = gdb.selected_frame().read_register("fpscr")
+        reg_state["fpscr"] = int(str(value), 16)
 
-    return reg_state
+        return reg_state
 #----------
 #---- Main
 
