@@ -184,29 +184,11 @@ class AflUnicornEngine(Uc):
         # Load the registers
         regs = context['regs']
         reg_map = self.__get_register_map(self._arch_str)
-        for register, value in regs.iteritems():
-            if debug_print:
-                print("Reg {0} = {1}".format(register, value))
-            if not reg_map.has_key(register.lower()):
-                if debug_print:
-                    print("Skipping Reg: {}".format(register))
-            else:
-                reg_write_retry = True
-                try:
-                    self.reg_write(reg_map[register.lower()], value)
-                    reg_write_retry = False
-                except Exception as e:
-                    if debug_print:
-                        print("ERROR writing register: {}, value: {} -- {}".format(register, value, repr(e)))
-
-                if reg_write_retry:
-                    if debug_print:
-                        print("Trying to parse value ({}) as hex string".format(value))
-                    try:
-                        self.reg_write(reg_map[register.lower()], int(value, 16))
-                    except Exception as e:
-                        if debug_print:
-                            print("ERROR writing hex string register: {}, value: {} -- {}".format(register, value, repr(e)))
+        self.__load_registers(regs, reg_map, debug_print)
+        if 'regs_extended' in context:
+            regs_extended = context['regs_extended']
+            reg_map = self.__get_registers_extended(self._arch_str)
+            self.__load_registers(regs_extended, reg_map, debug_print)
                         
         # Setup the memory map and load memory content
         self.__map_segments(context['segments'], context_directory, debug_print)
@@ -253,6 +235,11 @@ class AflUnicornEngine(Uc):
         for reg in sorted(self.__get_register_map(self._arch_str).items(), key=lambda reg: reg[0]):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
+    def dump_regs_extended(self):
+        """ Dumps the contents of all the registers to STDOUT """
+        for reg in sorted(self.__get_registers_extended(self._arch_str).items(), key=lambda reg: reg[0]):
+            print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
+
     # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
     def dump_stack(self, window=10):
@@ -267,6 +254,31 @@ class AflUnicornEngine(Uc):
 
     #-----------------------------
     #---- Loader Helper Functions
+
+    def __load_registers(self, regs, reg_map, debug_print):
+        for register, value in regs.iteritems():
+            if debug_print:
+                print("Reg {0} = {1}".format(register, value))
+            if not reg_map.has_key(register.lower()):
+                if debug_print:
+                    print("Skipping Reg: {}".format(register))
+            else:
+                reg_write_retry = True
+                try:
+                    self.reg_write(reg_map[register.lower()], value)
+                    reg_write_retry = False
+                except Exception as e:
+                    if debug_print:
+                        print("ERROR writing register: {}, value: {} -- {}".format(register, value, repr(e)))
+
+                if reg_write_retry:
+                    if debug_print:
+                        print("Trying to parse value ({}) as hex string".format(value))
+                    try:
+                        self.reg_write(reg_map[register.lower()], int(value, 16))
+                    except Exception as e:
+                        if debug_print:
+                            print("ERROR writing hex string register: {}, value: {} -- {}".format(register, value, repr(e)))
 
     def __map_segment(self, name, address, size, perms, debug_print=False):
         # - size is unsigned and must be != 0
@@ -519,6 +531,53 @@ class AflUnicornEngine(Uc):
         }
         return registers[arch]   
 
+    def __get_registers_extended(self, arch):
+        if arch == "arm64le" or arch == "arm64be":
+            arch = "arm64"
+        elif arch == "armle" or arch == "armbe" or "thumb" in arch:
+            arch = "arm"
+        elif arch == "mipsel":
+            arch = "mips"
+
+        registers = {
+        "arm": {
+            "d0": UC_ARM_REG_D0,
+            "d1": UC_ARM_REG_D1,
+            "d2": UC_ARM_REG_D2,
+            "d3": UC_ARM_REG_D3,
+            "d4": UC_ARM_REG_D4,
+            "d5": UC_ARM_REG_D5,
+            "d6": UC_ARM_REG_D6,
+            "d7": UC_ARM_REG_D7,
+            "d8": UC_ARM_REG_D8,
+            "d9": UC_ARM_REG_D9,
+            "d10": UC_ARM_REG_D10,
+            "d11": UC_ARM_REG_D11,
+            "d12": UC_ARM_REG_D12,
+            "d13": UC_ARM_REG_D13,
+            "d14": UC_ARM_REG_D14,
+            "d15": UC_ARM_REG_D15,
+            "d16": UC_ARM_REG_D16,
+            "d17": UC_ARM_REG_D17,
+            "d18": UC_ARM_REG_D18,
+            "d19": UC_ARM_REG_D19,
+            "d20": UC_ARM_REG_D20,
+            "d21": UC_ARM_REG_D21,
+            "d22": UC_ARM_REG_D22,
+            "d23": UC_ARM_REG_D23,
+            "d24": UC_ARM_REG_D24,
+            "d25": UC_ARM_REG_D25,
+            "d26": UC_ARM_REG_D26,
+            "d27": UC_ARM_REG_D27,
+            "d28": UC_ARM_REG_D28,
+            "d29": UC_ARM_REG_D29,
+            "d30": UC_ARM_REG_D30,
+            "d31": UC_ARM_REG_D31,
+            "fpscr": UC_ARM_REG_FPSCR
+            }
+        }
+
+        return registers[arch];
     #---------------------------
     # Callbacks for tracing 
 

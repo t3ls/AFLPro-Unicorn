@@ -94,6 +94,7 @@ def dump_regs():
 #             reg_str = "0x{:016x}".format(reg_val)
 #         reg_state[reg.strip().strip('$')] = reg_str
         reg_state[reg.strip().strip('$')] = reg_val
+
     return reg_state
 
 
@@ -146,6 +147,19 @@ def dump_process_memory(output_dir):
             
     return final_segment_list
 
+#-----------------------
+#---- ARM Extention (dump floating point regs)
+
+def dump_float(rge=32):
+    reg_convert = ""
+    reg_state = {}
+    for reg_num in range(32):
+        value = gdb.selected_frame().read_register("d" + str(reg_num))
+        reg_state["d" + str(reg_num)] = int(str(value["u64"]), 16)
+    value = gdb.selected_frame().read_register("fpscr")
+    reg_state["fpscr"] = int(str(value), 16)
+
+    return reg_state
 #----------
 #---- Main    
     
@@ -172,7 +186,8 @@ def main():
         # Get the context
         context = {
             "arch": dump_arch_info(),
-            "regs": dump_regs(), 
+            "regs": dump_regs(),
+            "regs_extended": dump_float(),
             "segments": dump_process_memory(output_path),
         }
 
