@@ -185,11 +185,15 @@ class AflUnicornEngine(Uc):
         regs = context['regs']
         reg_map = self.__get_register_map(self._arch_str)
         self.__load_registers(regs, reg_map, debug_print)
-        # If extended registers were dumped, load them as well
+        # If we have extra FLOATING POINT regs, load them in!
         if 'regs_extended' in context:
             regs_extended = context['regs_extended']
             reg_map = self.__get_registers_extended(self._arch_str)
             self.__load_registers(regs_extended, reg_map, debug_print)
+
+        # For ARM, sometimes the stack pointer is erased ??? (I think I fixed this (issue with ordering of dumper.py, I'll keep the write anyways)
+        if self.__get_arch_and_mode(self.get_arch_str())[0] == UC_ARCH_ARM:
+            self.reg_write(UC_ARM_REG_SP, regs['sp'])
 
         # Setup the memory map and load memory content
         self.__map_segments(context['segments'], context_directory, debug_print)
@@ -237,12 +241,12 @@ class AflUnicornEngine(Uc):
             print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
 
     def dump_regs_extended(self):
-        """ Dumps the contents of all the FLOATING POINT registers to STDOUT """
-	    try:
+        """ Dumps the contents of all the registers to STDOUT """
+        try:
             for reg in sorted(self.__get_registers_extended(self._arch_str).items(), key=lambda reg: reg[0]):
                 print(">>> {0:>4}: 0x{1:016x}".format(reg[0], self.reg_read(reg[1])))
-        except:
-            print("ERROR @dump_regs_extended: are there extended registers?")
+        except Exception as e:
+            print("ERROR: Are extended registers loaded?")
 
     # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
