@@ -184,5 +184,6 @@ else
 fi
 
 rm -f .test-instr0
+rm -f -r unicorn
 
 exit $RETVAL
