@@ -26,6 +26,13 @@ from unicorn.arm64_const import *
 from unicorn.x86_const import *
 from unicorn.mips_const import *
 
+# If Capstone libraries are availible (only check once)
+try:
+    from capstone import *
+    CAPSTONE_EXISTS = 1
+except:
+    CAPSTONE_EXISTS = 0
+
 # Name of the index file
 INDEX_FILE_NAME = "_index.json"
 
@@ -247,12 +254,34 @@ class AflUnicornEngine(Uc):
     # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
     def dump_stack(self, window=10):
+        arch = self.get_arch()
+        mode = self.get_mode()
+        # Get stack pointers and bit sizes for given architecture
+        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+            bit_size = 8
+        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_ESP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM64:
+            stack_ptr_addr = self.reg_read(UC_ARM64_REG_SP)
+            bit_size = 8
+        elif arch == UC_ARCH_ARM:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_MIPS:
+            stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
+            bit_size = 4
+        print("")
         print(">>> Stack:")
         stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
         for i in xrange(-window, window + 1):
             addr = stack_ptr_addr + (i*8)
             print("{0}0x{1:016x}: 0x{2:016x}".format( \
-                'SP->' if i == 0 else '    ', addr, \
+               'SP->' if i == 0 else '    ', addr, \
                 struct.unpack('<Q', self.mem_read(addr, 8))[0]))
     """
 
@@ -414,7 +443,6 @@ class AflUnicornEngine(Uc):
                 "r14":    UC_X86_REG_R14,
                 "r15":    UC_X86_REG_R15,
                 "rip":    UC_X86_REG_RIP,
-                "rsp":    UC_X86_REG_RSP,
                 "efl":    UC_X86_REG_EFLAGS,
                 "cs":     UC_X86_REG_CS,
                 "ds":     UC_X86_REG_DS,
@@ -431,7 +459,6 @@ class AflUnicornEngine(Uc):
                 "esi":    UC_X86_REG_ESI,
                 "edi":    UC_X86_REG_EDI,
                 "ebp":    UC_X86_REG_EBP,
-                "esp":    UC_X86_REG_ESP,
                 "eip":    UC_X86_REG_EIP,
                 "esp":    UC_X86_REG_ESP,
                 "efl":    UC_X86_REG_EFLAGS,
@@ -586,26 +613,46 @@ class AflUnicornEngine(Uc):
     #---------------------------
     # Callbacks for tracing
 
-    # TODO: Make integer-printing fixed widths dependent on bitness of architecture
-    #       (i.e. only show 4 bytes for 32-bit, 8 bytes for 64-bit)
 
-    # TODO: Figure out how best to determine the capstone mode and architecture here
-    """
-    try:
-        # If Capstone is installed then we'll dump disassembly, otherwise just dump the binary.
-        from capstone import *
-        cs = Cs(CS_ARCH_MIPS, CS_MODE_MIPS32 + CS_MODE_BIG_ENDIAN)
-        def __trace_instruction(self, uc, address, size, user_data):
-            mem = uc.mem_read(address, size)
-            for (cs_address, cs_size, cs_mnemonic, cs_opstr) in cs.disasm_lite(bytes(mem), size):
-                print("    Instr: {:#016x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
-    except ImportError:
-        def __trace_instruction(self, uc, address, size, user_data):
-            print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
-    """
+    # TODO: Extra mode for Capstone (i.e. Cs(cs_arch, cs_mode + cs_extra) not implemented
+
 
     def __trace_instruction(self, uc, address, size, user_data):
-        print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
+        if CAPSTONE_EXISTS == 1:
+            # If Capstone is installed then we'll dump disassembly, otherwise just dump the binary.
+            arch = self.get_arch()
+            mode = self.get_mode()
+            bit_size = self.bit_size_arch()
+            # Map current arch to capstone labeling
+            if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+                cs_arch = CS_ARCH_X86
+                cs_mode = CS_MODE_64
+            elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+                cs_arch = CS_ARCH_X86
+                cs_mode = CS_MODE_32
+            elif arch == UC_ARCH_ARM64:
+                cs_arch = CS_ARCH_ARM64
+                cs_mode = CS_MODE_ARM
+            elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
+                cs_arch = CS_ARCH_ARM
+                cs_mode = CS_MODE_THUMB
+            elif arch == UC_ARCH_ARM:
+                cs_arch = CS_ARCH_ARM
+                cs_mode = CS_MODE_ARM
+            elif arch == UC_ARCH_MIPS:
+                cs_arch = CS_ARCH_MIPS
+                cs_mode = CS_MODE_MIPS32  # No other MIPS supported in program
+
+            cs = Cs(cs_arch, cs_mode)
+            mem = uc.mem_read(address, size)
+            if bit_size == 4:
+                for (cs_address, cs_size, cs_mnemonic, cs_opstr) in cs.disasm_lite(bytes(mem), size):
+                    print("    Instr: {:#08x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
+            else:
+                for (cs_address, cs_size, cs_mnemonic, cs_opstr) in cs.disasm_lite(bytes(mem), size):
+                    print("    Instr: {:#16x}:\t{}\t{}".format(address, cs_mnemonic, cs_opstr))
+        else:
+            print("    Instr: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
 
     def __trace_block(self, uc, address, size, user_data):
         print("Basic Block: addr=0x{0:016x}, size=0x{1:016x}".format(address, size))
@@ -621,3 +668,19 @@ class AflUnicornEngine(Uc):
             print("        >>> INVALID Write: addr=0x{0:016x} size={1} data=0x{2:016x}".format(address, size, value))
         else:
             print("        >>> INVALID Read: addr=0x{0:016x} size={1}".format(address, size))
+
+    def bit_size_arch(self):
+        arch = self.get_arch()
+        mode = self.get_mode()
+        # Get bit sizes for given architecture
+        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+            bit_size = 8
+        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+            bit_size = 4
+        elif arch == UC_ARCH_ARM64:
+            bit_size = 8
+        elif arch == UC_ARCH_ARM:
+            bit_size = 4
+        elif arch == UC_ARCH_MIPS:
+            bit_size = 4
+        return bit_size
