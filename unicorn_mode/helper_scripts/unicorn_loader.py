@@ -263,6 +263,28 @@ class AflUnicornEngine(Uc):
     # TODO: Make this dynamically get the stack pointer register and pointer width for the current architecture
     """
     def dump_stack(self, window=10):
+        arch = self.get_arch()
+        mode = self.get_mode()
+        # Get stack pointers and bit sizes for given architecture
+        if arch == UC_ARCH_X86 and mode == UC_MODE_64:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
+            bit_size = 8
+        elif arch == UC_ARCH_X86 and mode == UC_MODE_32:
+            stack_ptr_addr = self.reg_read(UC_X86_REG_ESP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM64:
+            stack_ptr_addr = self.reg_read(UC_ARM64_REG_SP)
+            bit_size = 8
+        elif arch == UC_ARCH_ARM:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_ARM and mode == UC_MODE_THUMB:
+            stack_ptr_addr = self.reg_read(UC_ARM_REG_SP)
+            bit_size = 4
+        elif arch == UC_ARCH_MIPS:
+            stack_ptr_addr = self.reg_read(UC_MIPS_REG_SP)
+            bit_size = 4
+        print("")
         print(">>> Stack:")
         stack_ptr_addr = self.reg_read(UC_X86_REG_RSP)
         for i in xrange(-window, window + 1):
