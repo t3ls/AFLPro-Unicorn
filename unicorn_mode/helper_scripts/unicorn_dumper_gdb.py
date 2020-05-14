@@ -44,6 +44,7 @@ MAX_SEG_SIZE = 128 * 1024 * 1024
 # Name of the index file
 INDEX_FILE_NAME = "_index.json"
 
+
 #----------------------
 #---- Helper Functions
 
@@ -88,11 +89,6 @@ def dump_regs():
     reg_state = {}
     for reg in current_arch.all_registers:
         reg_val = get_register(reg)
-        # current dumper script looks for register values to be hex strings
-#         reg_str = "0x{:08x}".format(reg_val)
-#         if "64" in get_arch():
-#             reg_str = "0x{:016x}".format(reg_val)
-#         reg_state[reg.strip().strip('$')] = reg_str
         reg_state[reg.strip().strip('$')] = reg_val
 
     return reg_state
@@ -147,20 +143,21 @@ def dump_process_memory(output_dir):
 
     return final_segment_list
 
-#-----------------------
+#---------------------------------------------
 #---- ARM Extention (dump floating point regs)
 
 def dump_float(rge=32):
     reg_convert = ""
-    reg_state = {}
-    # Get all floating point registers
-    for reg_num in range(32):
-        value = gdb.selected_frame().read_register("d" + str(reg_num))
-        reg_state["d" + str(reg_num)] = int(str(value["u64"]), 16)
-    value = gdb.selected_frame().read_register("fpscr")
-    reg_state["fpscr"] = int(str(value), 16)
+    if map_arch() == "armbe" or map_arch() == "armle" or map_arch() == "armbethumb" or map_arch() == "armbethumb":
+        reg_state = {}
+        for reg_num in range(32):
+            value = gdb.selected_frame().read_register("d" + str(reg_num))
+            reg_state["d" + str(reg_num)] = int(str(value["u64"]), 16)
+        value = gdb.selected_frame().read_register("fpscr")
+        reg_state["fpscr"] = int(str(value), 16)
 
-    return reg_state
+        return reg_state
+
 #----------
 #---- Main
 
