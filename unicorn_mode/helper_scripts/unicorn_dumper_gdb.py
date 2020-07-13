@@ -60,14 +60,14 @@ def map_arch():
         return "arm64be"
     elif 'armeb' in arch:
         # check for THUMB mode
-        cpsr = get_register('cpsr')
+        cpsr = get_register('$cpsr')
         if (cpsr & (1 << 5)):
             return "armbethumb"
         else:
             return "armbe"
     elif 'arm' in arch:
         # check for THUMB mode
-        cpsr = get_register('cpsr')
+        cpsr = get_register('$cpsr')
         if (cpsr & (1 << 5)):
             return "armlethumb"
         else:
