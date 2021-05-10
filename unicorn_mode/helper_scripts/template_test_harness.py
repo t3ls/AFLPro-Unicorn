@@ -11,11 +11,14 @@
 """
 
 import argparse
+import posix_ipc
+import os
+import struct
 
 from unicorn import *
 from unicorn.x86_const import *  # TODO: Set correct architecture here as necessary
 
-import unicorn_loader 
+import unicorn_loader
 
 # Simple stand-in heap to prevent OS/kernel issues
 unicorn_heap = None
@@ -24,18 +27,54 @@ unicorn_heap = None
 START_ADDRESS = # TODO: Set start address here
 END_ADDRESS   = # TODO: Set end address here
 
+potential_address = {}
+high_energy_address = {}
+aflpro_shm_id = ''
+
 """
     Implement target-specific hooks in here.
     Stub out, skip past, and re-implement necessary functionality as appropriate
 """
 def unicorn_hook_instruction(uc, address, size, user_data):
+    global aflpro_shm_id
+    energy = potential_address[address]
+    if energy is not None:
+        old_energy = read_shm()
+        write_shm(old_energy + energy)
 
     # TODO: Setup hooks and handle anything you need to here
     #    - For example, hook malloc/free/etc. and handle it internally
     pass
 
+
+def read_shm():
+    with posix_ipc.SharedMemory(aflpro_shm_id) as f:
+        with os.fdopen(f.fd, 'rb') as ff:
+            data = struct.unpack('<Q', ff.read())
+            if len(data) > 0:
+                return data
+    return -1
+
+
+def write_shm(data):
+    with posix_ipc.SharedMemory(aflpro_shm_id) as f:
+        with os.fdopen(f.fd, 'wb') as ff:
+            buf = bytearray(struct.pack('<Q', data))
+            ff.write(buf)
+
+
+def setup_aflpro_shm(testcase_filename):
+    global aflpro_shm_id
+    if not testcase_filename.startswith('/'):
+        testcase_filename = '/' + testcase_filename
+    aflpro_shm_id = testcase_filename + '.aflpro_shm'
+    f = posix_ipc.SharedMemory(aflpro_shm_id, flags=posix_ipc.O_CREAT, size=8, read_only=False)
+    with os.fdopen(f.fd, 'wb') as f:
+        buf = bytearray(struct.pack('<Q', 0))
+        f.write(buf)
+
 #------------------------
-#---- Main test function  
+#---- Main test function
 
 def main():
 
@@ -46,7 +85,7 @@ def main():
     args = parser.parse_args()
 
     print("Loading context from {}".format(args.context_dir))
-    uc = unicorn_loader.AflUnicornEngine(args.context_dir, enable_trace=args.debug, debug_print=False)       
+    uc = unicorn_loader.AflUnicornEngine(args.context_dir, enable_trace=args.debug, debug_print=False)
 
     # Instantiate the hook function to avoid emulation errors
     global unicorn_heap
@@ -56,7 +95,7 @@ def main():
     # Execute 1 instruction just to startup the forkserver
     # NOTE: This instruction will be executed again later, so be sure that
     #       there are no negative consequences to the overall execution state.
-    #       If there are, change the later call to emu_start to no re-execute 
+    #       If there are, change the later call to emu_start to no re-execute
     #       the first instruction.
     print("Starting the forkserver by executing 1 instruction")
     try:
@@ -69,12 +108,15 @@ def main():
     if args.input_file:
         print("Loading input content from {}".format(args.input_file))
         input_file = open(args.input_file, 'rb')
+
+        setup_aflpro_shm(input_file)
+
         input_content = input_file.read()
         input_file.close()
 
         # TODO: Apply constraints to mutated input here
         raise exceptions.NotImplementedError('No constraints on the mutated inputs have been set!')
-        
+
         # Allocate a new buffer and put the input into it
         buf_addr = unicorn_heap.malloc(len(input_content))
         uc.mem_write(buf_addr, input_content)
@@ -82,23 +124,23 @@ def main():
 
         # TODO: Set the input into the state so it will be handled
         raise exceptions.NotImplementedError('The mutated input was not loaded into the Unicorn state!')
-        
+
     # Run the test
     print("Executing from 0x{0:016x} to 0x{1:016x}".format(START_ADDRESS, END_ADDRESS))
     try:
         result = uc.emu_start(START_ADDRESS, END_ADDRESS, timeout=0, count=0)
     except UcError as e:
-        # If something went wrong during emulation a signal is raised to force this 
+        # If something went wrong during emulation a signal is raised to force this
         # script to crash in a way that AFL can detect ('uc.force_crash()' should be
         # called for any condition that you want AFL to treat as a crash).
         print("Execution failed with error: {}".format(e))
-        uc.dump_regs() 
+        uc.dump_regs()
         uc.force_crash(e)
 
-    print("Final register state:")    
+    print("Final register state:")
     uc.dump_regs()
 
-    print("Done.")    
-        
+    print("Done.")
+
 if __name__ == "__main__":
     main()
