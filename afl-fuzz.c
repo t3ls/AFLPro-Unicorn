@@ -4000,7 +4000,7 @@ static void show_stats(void) {
 
     sprintf(tmp + banner_pad, "%s " cLCY VERSION cLGN
                               " (%s)",  crash_mode ? cPIN "peruvian were-rabbit" :
-                                        cYEL "american fuzzy lop", use_banner);
+                                        cYEL "AFLPro - Unicorn", use_banner);
 
     SAYF("\n%s\n\n", tmp);
 
