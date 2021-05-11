@@ -1,0 +1,3 @@
+[submodule "unicorn_mode/helper_scripts/callflow_generator/go-zydis"]
+	path = unicorn_mode/helper_scripts/callflow_generator/go-zydis
+	url = https://github.com/jpap/go-zydis.git

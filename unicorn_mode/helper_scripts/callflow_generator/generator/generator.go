@@ -55,7 +55,6 @@ var registerSwitchBitSize = map[string]string{
 }
 
 func (g *Generator) initDynFuncTable() error {
-	defer zydis.FormatterCallbackMap.Destroy()
 	dynSym, err := g.elf.DynamicSymbols()
 	if err != nil {
 		return err
@@ -96,8 +95,6 @@ func (g *Generator) initDynFuncTable() error {
 		}
 		_, tokens, err := g.formatter.TokenizeInstruction(instr, runtimeAddress)
 		instrLength := instr.Length
-		instr.Destroy()
-		instr = nil
 		if err != nil {
 			return err
 		}
@@ -448,7 +445,6 @@ func (g *Generator) analyzeFuncArgs(blockTokens *[][]zydis.FormatterToken, isSys
 }
 
 func (g *Generator) Analyze() ([]*Result, error) {
-	defer zydis.FormatterCallbackMap.Destroy()
 	sec := g.elf.Section(".text")
 	if sec == nil {
 		return nil, nil
@@ -483,8 +479,6 @@ func (g *Generator) Analyze() ([]*Result, error) {
 		}
 		instrLength := instr.Length
 		_, tokens, err = g.formatter.TokenizeInstruction(instr, runtimeAddress)
-		instr.Destroy()
-		instr = nil
 		if err != nil {
 			return nil, err
 		}
