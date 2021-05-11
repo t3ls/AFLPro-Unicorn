@@ -4707,8 +4707,6 @@ static u32 calculate_score(struct queue_entry* q) {
 
 
     sprintf(aflpro_shm_name, "/%u.aflpro_shm", hash32(use_mem, q->len, HASH_CONST));
-    ACTF("\n\n");
-    ACTF("shm: %s(%d) -> %s\n", q->fname, q->len, aflpro_shm_name);
     free(use_mem);
     use_mem = NULL;
     aflpro_shm = shm_open(aflpro_shm_name, O_RDWR, 0777);
@@ -4722,7 +4720,8 @@ static u32 calculate_score(struct queue_entry* q) {
 
     if (data != MAP_FAILED) {
         energy = *data;
-        ACTF("receive aflpro energy: %s -> %lld\n", aflpro_shm_name, energy);
+        ACTF("\n\n");
+        ACTF("receive aflpro energy: %s -> %lld\n", q->fname, energy);
         munmap(data, 8);
     }
 
